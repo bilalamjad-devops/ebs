@@ -1,4 +1,4 @@
-# Delete Unused AWS EBS Snapshots Automatically Using Terraform AWS EventBridge Scheduler, and AWS Lambda
+# Delete Unused AWS EBS Snapshots Automatically Using Terraform, EventBridge Scheduler, and AWS Lambda
 
 
 https://github.com/mathesh-me/aws-cost-optimization/blob/main/README.md
