@@ -285,3 +285,28 @@ This is the exact setup you did manually to provide a target for your Lambda fun
 - Launch the instance. Wait for it to be in `running` state.
 
 
+
+### 2. Create a Snapshot of its Root Volume:
+
+When we create ec2 instance, the volume gets created along with it. You can see:
+
+Press enter or click to view image in full size
+
+Our volume gets created along with ec2 creation
+
+- In the EC2 console, navigate to Snapshots (under “Elastic Block Store” in the left menu).
+- Select the volume.
+- Click Create snapshot.
+- Go to Snapshots and wait for your new snapshot to reach completed state.
+
+
+
+
+### 3. Terminate the EC2 Instance (Makes Snapshot Stale):
+
+- Go back to Instances in the EC2 console.
+- Select the EC2 instance you just launched.
+- Click Instance state -> Terminate instance. Confirm termination.
+- Crucial: When you terminate an EC2 instance, its root EBS volume is usually deleted automatically. This action makes the snapshot you just created “stale” because its source volume no longer exists and it’s not attached to any running instance.
+- Verify this by checking Volumes (the volume should be gone) and Snapshots (your snapshot should remain, but its Volume ID will refer to a non-existent volume).
+Press enter or click to view image in full size
