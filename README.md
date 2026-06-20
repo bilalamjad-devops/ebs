@@ -74,8 +74,8 @@ Aapko sirf do files banani hain: ek script directory aur ek main deployment scri
 
 ### 1. The Core Automation Script
 
-Apne project folder mein ek sub-folder banayein `src` ke naam se, aur usme yeh file save karein:
-📂 **`src/stale_snapshot_cleaner.py`**
+Apne project folder mein ek sub-folder banayein `python` ke naam se, aur usme yeh file save karein:
+📂 **`python/stale_snapshot_cleaner.py`**
 
 ```python
 import boto3
@@ -154,7 +154,7 @@ provider "aws" {
 # 1. Package the Python source file automatically on run execution
 data "archive_file" "lambda_zip" {
   type        = "zip"
-  source_file = "${path.module}/src/stale_snapshot_cleaner.py"
+  source_file = "${path.module}/python/stale_snapshot_cleaner.py"
   output_path = "${path.module}/stale_snapshot_cleaner.zip"
 }
 
