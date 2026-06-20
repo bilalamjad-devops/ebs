@@ -310,3 +310,13 @@ Our volume gets created along with ec2 creation
 - Crucial: When you terminate an EC2 instance, its root EBS volume is usually deleted automatically. This action makes the snapshot you just created “stale” because its source volume no longer exists and it’s not attached to any running instance.
 - Verify this by checking Volumes (the volume should be gone) and Snapshots (your snapshot should remain, but its Volume ID will refer to a non-existent volume).
 Press enter or click to view image in full size
+
+
+## Deploying & Verifying
+
+```tf
+terraform init
+terraform plan
+terraform apply
+Enter a value: yes
+```
