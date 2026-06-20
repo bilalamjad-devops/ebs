@@ -283,3 +283,5 @@ This is the exact setup you did manually to provide a target for your Lambda fun
 - Select an instance type (e.g., `t2.micro`, Free tier eligible).
 - Proceed through the steps, leaving storage defaults (which creates a root EBS volume).
 - Launch the instance. Wait for it to be in `running` state.
+
+
