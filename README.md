@@ -270,3 +270,16 @@ output "active_eventbridge_rule" {
 5. 5-7 minutes wait karein, phir Amazon CloudWatch Logs dashboard par ja kar log streams check karein—aapko wahan snapshot delete hone ke verification status logs mil jayenge!
 
 Bhai, aap ye lab test run karein, aur jaise hi aap screenshot frames capture kar lein, mujhe batayiyega, hum aapka agla grand ranking article document framework prepare karenge!
+
+
+
+Prepare the Target: Create a Stale Snapshot (Manual)
+This is the exact setup you did manually to provide a target for your Lambda function.
+
+1. Launch an EC2 Instance:
+- Navigate to the EC2 service.
+- Click “Launch instance” -> “Launch instance”.
+- Choose a simple AMI (e.g., “Amazon Linux 2 AMI”, Free tier eligible).
+- Select an instance type (e.g., `t2.micro`, Free tier eligible).
+- Proceed through the steps, leaving storage defaults (which creates a root EBS volume).
+- Launch the instance. Wait for it to be in `running` state.
