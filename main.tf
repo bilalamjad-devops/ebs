@@ -2,117 +2,94 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "5.74.0"
     }
   }
 }
 
 provider "aws" {
-  region = "us-east-1" # Aap apna preferred region set kar sakte hain
+  region = "ap-south-1" # Set your preferred target AWS region
 }
 
-# 1. Package the Python source file automatically on run execution
-data "archive_file" "lambda_zip" {
-  type        = "zip"
-  source_file = "${path.module}/src/stale_snapshot_cleaner.py"
-  output_path = "${path.module}/stale_snapshot_cleaner.zip"
-}
-
-# 2. Serverless Execution Core Identity Mapping
-resource "aws_iam_role" "lambda_role" {
-  name = "ebs-snapshot-cleaner-execution-role"
+# --- IAM Role for Lambda ---
+# This role allows the Lambda function to assume execution permissions
+resource "aws_iam_role" "snapshot_cleaner_role" {
+  name = "SnapshotCleanerLambdaRole"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-      }
-    ]
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
   })
 }
 
-# 3. Least-Privilege IAM Policy Block to secure the automation track
-resource "aws_iam_policy" "lambda_policy" {
-  name        = "ebs-snapshot-cleaner-execution-policy"
-  description = "Allows engine runtime to list configurations and drop orphaned snapshots safely."
+# --- IAM Policy for Permissions ---
+# Grants explicit permissions to query images, manage snapshots, and write CloudWatch logs
+resource "aws_iam_role_policy" "snapshot_cleaner_policy" {
+  name = "SnapshotCleanerLambdaPolicy"
+  role = aws_iam_role.snapshot_cleaner_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ec2:DescribeSnapshots",
-          "ec2:DescribeVolumes",
-          "ec2:DeleteSnapshot"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "arn:aws:logs:*:*:*"
-      }
-    ]
+    Statement = [{
+      Action = [
+        "ec2:DescribeSnapshots",
+        "ec2:DeleteSnapshot",
+        "ec2:DescribeImages",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ]
+      Effect   = "Allow"
+      Resource = "*"
+    }]
   })
 }
 
-# 4. Bind policy context to runtime core role profile
-resource "aws_iam_role_policy_attachment" "lambda_logs" {
-  role       = aws_iam_role.lambda_role.name
-  policy_arn = aws_iam_policy.lambda_policy.arn
+# --- Zip Code Package ---
+# Dynamically packages the Python microservice script into a deployment zip archive
+data "archive_file" "lambda_zip" {
+  type        = "zip"
+  source_file = "${path.module}/python/delete_unused_snapshots.py"
+  output_path = "${path.module}/python/delete_unused_snapshots.zip"
 }
 
-# 5. The Core Serverless Lambda Resource Lifecycle block
-resource "aws_lambda_function" "snapshot_cleaner" {
+# --- AWS Lambda Function ---
+# Serverless compute block containing the execution logic with 5 minutes timeout threshold
+resource "aws_lambda_function" "snapshot_cleaner_lambda" {
+  function_name    = "DeleteUnusedSnapshots"
+  role             = aws_iam_role.snapshot_cleaner_role.arn
+  handler          = "delete_unused_snapshots.lambda_handler"
+  runtime          = "python3.9"
+  timeout          = 300 
+  memory_size      = 128
   filename         = data.archive_file.lambda_zip.output_path
-  function_name    = "automated-ebs-snapshot-cleaner"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "stale_snapshot_cleaner.lambda_handler"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
-  runtime          = "python3.12"
-  timeout          = 60 
 }
 
-# 6. EventBridge Orchestrator Schedule - Set to trigger every 5 minutes for direct laboratory validation
-resource "aws_cloudwatch_event_rule" "cleanup_trigger" {
-  name                = "ebs-snapshot-cleaner-testing-schedule"
-  description         = "FinOps optimization engine cron pacing loop set to execute every 5 minutes."
-  schedule_expression = "rate(5 minutes)"
+# --- EventBridge Rule: Lab Testing Schedule (Runs every 5 minutes) ---
+resource "aws_cloudwatch_event_rule" "cleanup_schedule" {
+  name        = "ebs-snapshot-cleanup-lab-schedule"
+  description = "Triggers Lambda every 5 minutes for stable lab testing"
+  
+  schedule_expression = "rate(5 minutes)" 
 }
 
-# 7. Bind Orchestrator event emission target channel to the Lambda system
-resource "aws_cloudwatch_event_target" "target_lambda" {
-  rule      = aws_cloudwatch_event_rule.cleanup_trigger.name
-  target_id = "TriggerSnapshotCleanerLambdaRoutine"
-  arn       = aws_lambda_function.snapshot_cleaner.arn
+# --- EventBridge Target assignment ---
+resource "aws_cloudwatch_event_target" "lambda_target" {
+  rule      = aws_cloudwatch_event_rule.cleanup_schedule.name
+  target_id = "SnapshotCleanerTarget"
+  arn       = aws_lambda_function.snapshot_cleaner_lambda.arn
 }
 
-# 8. Define resource invocation access capabilities from EventBridge over to Lambda
+# --- Lambda Permission Resource mapping ---
 resource "aws_lambda_permission" "allow_eventbridge" {
-  statement_id  = "AllowExecutionFromEventBridgeOrchestrator"
+  statement_id  = "AllowExecutionFromEventBridge"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.snapshot_cleaner.function_name
+  function_name = aws_lambda_function.snapshot_cleaner_lambda.function_name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.cleanup_trigger.arn
-}
-
-# --- Runtime Status Outputs ---
-output "deployed_lambda_arn" {
-  value       = aws_lambda_function.snapshot_cleaner.arn
-  description = "Target Resource Access Signature map for the serverless automation block."
-}
-
-output "active_eventbridge_rule" {
-  value       = aws_cloudwatch_event_rule.cleanup_trigger.arn
-  description = "Target Resource Access Signature map for the cloud watch chron engine trigger."
+  source_arn    = aws_cloudwatch_event_rule.cleanup_schedule.arn
 }
