@@ -320,3 +320,463 @@ terraform plan
 terraform apply
 Enter a value: yes
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Here are the rewritten steps for your Medium article. I have made them look highly professional, clear, and used meaningful naming conventions (like `staging-golden-image-v1`) that real DevOps engineers use in production.
+
+Replace your article's testing section with this:
+
+---
+
+## 🚀 Step 2: Simulate an Orphaned Cloud Resource (AWS Console)
+
+To test our automated cleanup pipeline, we need to create an orphaned snapshot that simulates a real-world scenario where a platform engineer deletes an old golden image but forgets the storage backend.
+
+1. **Locate a Test Resource:** Navigate to the **AWS Management Console > EC2 > Instances** and select any existing running or stopped test instance.
+2. **Generate a Custom Image (AMI):** Click **Actions > Images and templates > Create image**.
+3. **Apply a Production Naming Convention:** Instead of a generic dummy name, use a structured naming convention like:
+* **Image name:** `staging-golden-image-v1.0`
+* **Description:** `Base golden image deployment for staging environment.`
+
+
+4. **Track the Creation:** Click **Create image**. Head over to **EC2 > AMIs** and wait a moment until the status changes from `pending` to `available`.
+
+*Note: Behind the scenes, AWS automatically generated a block storage snapshot linked to this AMI.*
+
+5. **Deregister the Image:** Select your new `staging-golden-image-v1.0` AMI, click **Actions**, and choose **Deregister AMI**.
+6. **Verify the Orphaned State:** Now, navigate to **EC2 > Snapshots**. You will see that the AMI is gone, but the snapshot remains completely intact with a description starting with `"Created by CreateImage..."`. This is now our **idle target**.
+
+---
+
+## 🔎 Step 3: Witness the Automation in Action
+
+With our automation engine live, we can monitor the event-driven system as it automatically sweeps the region:
+
+* **Watch the Console:** Stay on your **EC2 > Snapshots** dashboard. Because our EventBridge rule is configured to execute at a tight `rate(5 minutes)`, your Lambda function will automatically wake up within a 5-minute window, identify the detached snapshot, and purge it from your account. Refresh the page after a few minutes, and the snapshot will completely vanish.
+* **Inspect Execution Logs:** To view exactly how our infrastructure behaves under the hood, navigate to **Amazon CloudWatch > Log Groups > /aws/lambda/DeleteUnusedSnapshots**. Click on the latest log stream to see the clean execution report confirming success:
+
+```text
+--- Unused EBS Snapshot Cleanup Process Started ---
+Found 0 snapshots linked to active AMIs. These are safe.
+Found orphaned AMI snapshot: snap-0abc123def456789. Deleting...
+Cleanup completed. Total unused snapshots removed: 1
+
+```
+
+---
+
+## 🧹 Step 4: Tear Down the Lab Infrastructure
+
+To practice responsible cloud cost management and prevent any accidental API execution cycles in your testing environment, tear down the scheduler engine using a singular declarative command:
+
+```bash
+terraform destroy --auto-approve
+
+```
+
+> ⚠️ **Important Reminder:** The `terraform destroy` pipeline cleanly unprovisions your custom IAM execution roles, the serverless Lambda instances, and the EventBridge rules. However, make sure to manually terminate the test EC2 instance you used in Step 2 if you no longer need it, as it was managed outside of Terraform's state matrix.
+
+---
+
+### 💡 Why this looks amazing in your article:
+
+Using a name like `staging-golden-image-v1.0` instantly shows the reader that you are simulating a **real corporate workflow** (baking images for scaling or disaster recovery) instead of just clicking around randomly. It elevates the entire authority of your post!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+I actually **would not use EBS volume snapshots** for this article.
+
+Your current Lambda code is specifically looking for **snapshots that were created by AMIs (Golden Images)**:
+
+```python
+amis = ec2.describe_images(Owners=['self'])
+```
+
+and
+
+```python
+if "Created by CreateImage" in description:
+```
+
+So your article should tell a realistic story about **Golden Images**, not volume backups.
+
+---
+
+# This is the scenario I would demonstrate.
+
+This is something companies actually do.
+
+> A DevOps engineer creates a Golden AMI for deployment.
+>
+> Later, a newer version of the application is released.
+>
+> The old AMI is deregistered (deleted).
+>
+> However, the EBS snapshot that AWS created for that AMI still remains.
+>
+> Nobody notices it.
+>
+> Hundreds of these accumulate over months.
+>
+> AWS continues charging for them.
+
+This is MUCH more realistic.
+
+---
+
+# I would build the lab like this.
+
+## Step 1
+
+Launch EC2.
+
+Name
+
+```
+staging-app-server-v1
+```
+
+Excellent name.
+
+Exactly what companies use.
+
+---
+
+## Step 2
+
+Create Golden Image
+
+EC2
+
+↓
+
+Actions
+
+↓
+
+Image and templates
+
+↓
+
+Create Image
+
+Name
+
+```
+staging-golden-image-v1.0
+```
+
+Description
+
+```
+Golden image for staging application deployment
+```
+
+Perfect.
+
+---
+
+AWS now creates
+
+```
+AMI
+
++
+
+Snapshot
+```
+
+---
+
+## Step 3
+
+Wait
+
+Image state
+
+Available
+
+---
+
+## Step 4
+
+Go to
+
+AMI
+
+You will see
+
+```
+staging-golden-image-v1.0
+```
+
+---
+
+## Step 5
+
+Go to
+
+Snapshots
+
+You will see
+
+```
+snap-xxxxxxxx
+```
+
+Description
+
+```
+Created by CreateImage(i-xxxxxxxx)
+```
+
+Exactly what your Lambda checks.
+
+---
+
+## Step 6
+
+Now deregister the AMI.
+
+NOT DELETE SNAPSHOT.
+
+Very important.
+
+Choose
+
+```
+Deregister AMI
+```
+
+When AWS asks
+
+Delete associated snapshots?
+
+Choose
+
+```
+NO
+```
+
+This creates your orphan snapshot.
+
+Now
+
+AMI
+
+❌ gone
+
+Snapshot
+
+✅ still exists
+
+This is exactly the business problem.
+
+---
+
+# Now your article becomes interesting.
+
+You can say
+
+> The development team created a Golden Image for version 1.0 of their staging application.
+
+Later,
+
+Version 2.0 was released.
+
+The old AMI was deregistered.
+
+However, its backing snapshot remained in the AWS account.
+
+As more releases were deployed, unused snapshots accumulated, increasing monthly storage costs.
+
+Our Lambda automatically detects these orphan snapshots and deletes them.
+
+Now this sounds like a real company.
+
+---
+
+# Then deploy Terraform.
+
+Run
+
+```
+terraform init
+
+terraform plan
+
+terraform apply
+```
+
+Terraform creates
+
+✅ IAM
+
+✅ Lambda
+
+✅ EventBridge
+
+---
+
+# Wait five minutes.
+
+EventBridge
+
+↓
+
+Lambda
+
+↓
+
+Finds orphan snapshot
+
+↓
+
+Deletes it
+
+---
+
+# Verify
+
+CloudWatch
+
+```
+Found orphaned snapshot
+
+Deleting snapshot...
+
+Cleanup complete.
+```
+
+---
+
+# Refresh Snapshot page
+
+Empty.
+
+Success.
+
+---
+
+# Then
+
+```
+terraform destroy
+```
+
+---
+
+# Architecture
+
+```
+Developer
+
+↓
+
+Launch EC2
+
+↓
+
+Create Golden Image
+
+↓
+
+AWS creates Snapshot
+
+↓
+
+Deregister AMI
+
+↓
+
+Snapshot becomes orphan
+
+↓
+
+Terraform
+
+↓
+
+EventBridge
+
+↓
+
+Lambda
+
+↓
+
+Delete orphan snapshot
+
+↓
+
+CloudWatch Logs
+```
+
+This architecture tells a story.
+
+---
+
+# I would even rename your project.
+
+Instead of
+
+Delete Unused Snapshots
+
+I'd say
+
+# Delete Orphaned EBS Snapshots Automatically Using Terraform, EventBridge Scheduler, and AWS Lambda
+
+Because "orphaned snapshot" is an AWS term engineers recognize, and it accurately describes the scenario your Lambda handles.
+
+---
+
+## One improvement to your Lambda
+
+Your current Lambda only checks whether a snapshot belongs to an existing AMI. That's a good lab, but in production I'd also avoid deleting snapshots just because they're not tied to an AMI. For example, teams may create manual snapshots for backups that aren't associated with any AMI.
+
+A safer approach is to **scope the cleanup**. For a portfolio project, you could add a tag such as:
+
+```
+AutoCleanup=True
+```
+
+and make your Lambda delete only snapshots that:
+
+* were created by `CreateImage`,
+* are no longer referenced by an AMI,
+* **and** have `AutoCleanup=True`.
+
+That small addition demonstrates that you're thinking about production safety, not just making the code work. Recruiters and experienced DevOps engineers tend to appreciate that kind of design decision because it reduces the risk of accidental data loss.
